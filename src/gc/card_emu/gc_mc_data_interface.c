@@ -106,14 +106,15 @@ void __time_critical_func(gc_mc_data_interface_write_mc)(uint32_t addr, void *bu
 }
 
 void gc_mc_data_interface_flush(void) {
-    while (gc_dirty_activity > 0) {
+    /* the activity flag is only as new as the last task, which may predate the last write */
+    do {
         gc_mc_data_interface_task();
-    }
+    } while (gc_dirty_activity > 0);
 }
 
-void __time_critical_func(gc_mc_data_interface_erase)(uint32_t page) {
-    if ((page + ERASE_SECTORS) * GC_PAGE_SIZE <= gc_cardman_get_card_size()) {
-        log(LOG_TRACE, "%s page %u\n", __func__, page);
+void __time_critical_func(gc_mc_data_interface_erase)(uint32_t addr) {
+    if (addr + ERASE_SECTORS * GC_PAGE_SIZE <= gc_cardman_get_card_size()) {
+        log(LOG_TRACE, "%s addr 0x%x\n", __func__, addr);
 
         gc_mc_data_interface_invalidate_read();
 
@@ -122,10 +123,10 @@ void __time_critical_func(gc_mc_data_interface_erase)(uint32_t page) {
         gc_dirty_lockout_renew();
         gc_dirty_lock();
         for (int i = 0; i < ERASE_SECTORS; ++i) {
-            psram_write_dma(page + (uint32_t)(i * GC_PAGE_SIZE), erasebuff, GC_PAGE_SIZE, NULL);
+            psram_write_dma(addr + (uint32_t)(i * GC_PAGE_SIZE), erasebuff, GC_PAGE_SIZE, NULL);
             psram_wait_for_dma();
-            gc_cardman_mark_segment_available(page + (uint32_t)(i * GC_PAGE_SIZE));
-            gc_dirty_mark((uint32_t)(page/GC_PAGE_SIZE + i));
+            gc_cardman_mark_segment_available((uint32_t)(addr/GC_PAGE_SIZE + i));
+            gc_dirty_mark((uint32_t)(addr/GC_PAGE_SIZE + i));
         }
         gc_dirty_unlock();
     }
