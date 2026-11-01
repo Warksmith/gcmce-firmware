@@ -84,6 +84,9 @@ Compiling and the host tests say nothing about these.
    (`PIN_BTN_LEFT`, GPIO 21).
 10. After using storage mode, boot the console and load a save: normal operation is
     unchanged.
+11. Time an uncached read and write of a few MB, and the wait for the drive to appear. Before
+    read-ahead, on a 32 GB FAT32 card with 16 KB clusters, reads were about 620 KiB/s, writes
+    about 630 KiB/s, and the drive took about 13 seconds to appear.
 
 ## Hardware checks: folder cards
 

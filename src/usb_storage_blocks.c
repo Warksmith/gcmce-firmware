@@ -11,6 +11,47 @@ static bool in_range(const usb_blocks_t *dev, uint32_t lba, uint32_t offset, uin
     return size > 0 && start + size <= end;
 }
 
+static bool read_whole(const usb_blocks_t *dev, uint32_t sector, uint8_t *dst, uint32_t count) {
+    usb_ahead_t *ahead = dev->ahead;
+
+    if (ahead == NULL)
+        return dev->read(sector, dst, count);
+
+    if (sector >= ahead->first && sector - ahead->first < ahead->count && count <= ahead->count - (sector - ahead->first))
+        memcpy(dst, &ahead->buffer[(sector - ahead->first) * USB_BLOCK_SIZE], count * USB_BLOCK_SIZE);
+    else if (!dev->read(sector, dst, count))
+        return false;
+
+    ahead->wanted = sector == ahead->next;
+    ahead->next = sector + count;
+    return true;
+}
+
+void usb_blocks_read_ahead(const usb_blocks_t *dev) {
+    usb_ahead_t *ahead = dev->ahead;
+    uint32_t count;
+
+    if (ahead == NULL || !ahead->wanted)
+        return;
+    ahead->wanted = false;
+
+    /* still holding what comes next, for a host reading in smaller steps than this */
+    if (ahead->next >= ahead->first && ahead->next - ahead->first < ahead->count)
+        return;
+    if (ahead->next >= dev->sectors)
+        return;
+
+    count = dev->sectors - ahead->next;
+    if (count > ahead->capacity)
+        count = ahead->capacity;
+
+    ahead->count = 0;
+    if (dev->read(ahead->next, ahead->buffer, count)) {
+        ahead->first = ahead->next;
+        ahead->count = count;
+    }
+}
+
 int32_t usb_blocks_read(const usb_blocks_t *dev, uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t size) {
     uint32_t sector = lba + offset / USB_BLOCK_SIZE;
     uint32_t skip = offset % USB_BLOCK_SIZE;
@@ -23,7 +64,7 @@ int32_t usb_blocks_read(const usb_blocks_t *dev, uint32_t lba, uint32_t offset, 
         uint32_t whole = left / USB_BLOCK_SIZE;
 
         if (skip == 0 && whole > 0) {
-            if (!dev->read(sector, buffer, whole))
+            if (!read_whole(dev, sector, buffer, whole))
                 return -1;
             sector += whole;
             buffer += whole * USB_BLOCK_SIZE;
@@ -52,6 +93,12 @@ int32_t usb_blocks_write(const usb_blocks_t *dev, uint32_t lba, uint32_t offset,
 
     if (!in_range(dev, lba, offset, size))
         return -1;
+
+    /* before the card changes, so that a failed write cannot leave old data readable here */
+    if (dev->ahead != NULL) {
+        dev->ahead->count = 0;
+        dev->ahead->wanted = false;
+    }
 
     while (left > 0) {
         uint32_t whole = left / USB_BLOCK_SIZE;
