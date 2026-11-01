@@ -14,6 +14,7 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src" sd2psx-build sh /src/test/run.
 | `test/usb/test_usb_blocks.c` | USB transfers: bounds, partial sectors, card errors |
 | `test/card_emu/test_data_path.c` | The real `gc_mc_data_interface.c` and `gc_dirty.c`: erases, flushes, bounds, folder card marks |
 | `test/folder/test_folder.c` | The folder card engine and `card_config.c`, on a simulated SD card and console |
+| `test/folder/test_settings.c` | `settings.c`: the global `StorageBackend` in `settings.ini` and flash |
 
 ### Folder card tests
 

@@ -1709,23 +1709,35 @@ static void test_backend_selection(void) {
 
     /* a directory that exists selects nothing */
     sim_sd_mkdirs(CARD);
-    CHECK(card_config_get_gc_backend("Card1", "Card1") == CARD_BACKEND_RAW);
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_RAW);
 
     ini("[Settings]\nStorageBackend=FOLDER\n");
-    CHECK(card_config_get_gc_backend("Card1", "Card1") == CARD_BACKEND_FOLDER);
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_FOLDER);
 
     ini("[Settings]\nStorageBackend=RAW\n");
-    CHECK(card_config_get_gc_backend("Card1", "Card1") == CARD_BACKEND_RAW);
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_RAW);
 
     ini("[Settings]\nStorageBackend=folder\n");
-    CHECK(card_config_get_gc_backend("Card1", "Card1") == CARD_BACKEND_RAW);
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_RAW);
 
     ini("[Settings]\nStorageBackend=\nCardSize=16\n");
-    CHECK(card_config_get_gc_backend("Card1", "Card1") == CARD_BACKEND_RAW);
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_RAW);
     CHECK(card_config_get_gc_cardsize("Card1", "Card1") == 16);
 
     ini("[Other]\nStorageBackend=FOLDER\n");
-    CHECK(card_config_get_gc_backend("Card1", "Card1") == CARD_BACKEND_RAW);
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_RAW);
+
+    /* the default from settings.ini, for a card that does not choose */
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_FOLDER) == CARD_BACKEND_FOLDER);
+    CHECK(card_config_get_gc_backend("NoSuchCard", "NoSuchCard", CARD_BACKEND_FOLDER) == CARD_BACKEND_FOLDER);
+
+    /* a card that does choose wins, and a value it got wrong still means RAW */
+    ini("[Settings]\nStorageBackend=RAW\n");
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_FOLDER) == CARD_BACKEND_RAW);
+    ini("[Settings]\nStorageBackend=folder\n");
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_FOLDER) == CARD_BACKEND_RAW);
+    ini("[Settings]\nStorageBackend=FOLDER\n");
+    CHECK(card_config_get_gc_backend("Card1", "Card1", CARD_BACKEND_RAW) == CARD_BACKEND_FOLDER);
 
     /* a folder name as long as they get */
     char dir[128], file[200], text[] = "[Settings]\nStorageBackend=FOLDER\n";
@@ -1737,7 +1749,7 @@ static void test_backend_selection(void) {
     sim_sd_mkdirs(dir);
     snprintf(file, sizeof(file), "%s/%s.ini", dir, name);
     sim_sd_put(file, text, strlen(text));
-    CHECK(card_config_get_gc_backend(name, name) == CARD_BACKEND_FOLDER);
+    CHECK(card_config_get_gc_backend(name, name, CARD_BACKEND_RAW) == CARD_BACKEND_FOLDER);
 }
 
 #define TEST(fn) { #fn, fn }

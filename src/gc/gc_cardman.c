@@ -539,7 +539,8 @@ void gc_cardman_open(void) {
     log(LOG_INFO, "Switching to card path = %s\n", path);
     gc_mc_data_interface_card_changed();
 
-    folder_backend = card_config_get_gc_backend(folder_name, folder_name) == CARD_BACKEND_FOLDER;
+    folder_backend = card_config_get_gc_backend(folder_name, folder_name,
+                                                settings_get_gc_folder_backend() ? CARD_BACKEND_FOLDER : CARD_BACKEND_RAW) == CARD_BACKEND_FOLDER;
     if (folder_backend) {
         open_folder_card();
         return;

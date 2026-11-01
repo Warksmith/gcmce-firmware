@@ -124,7 +124,7 @@ Hold Button 1 while connecting USB to use the microSD card as a removable drive,
 
 ## Folder memory cards
 
-A card can keep its saves as individual Dolphin-compatible `.gci` files instead of one `.raw` image. Add `StorageBackend=FOLDER` to the `[Settings]` section of its `CardX.ini`, and its saves live in `CardX-1.folder` next to where the `.raw` would be. Existing `.raw` cards are not touched or converted. See [doc/folder-memory-cards.md](doc/folder-memory-cards.md).
+A card can keep its saves as individual Dolphin-compatible `.gci` files instead of one `.raw` image. Add `StorageBackend=FOLDER` to the `[Settings]` section of its `CardX.ini`, and its saves live in `CardX-1.folder` next to where the `.raw` would be. The same section in `.flippermce/settings.ini` makes it the default for every card that does not set its own. Existing `.raw` cards are not touched or converted. See [doc/folder-memory-cards.md](doc/folder-memory-cards.md).
 
 ## Known issues
 
