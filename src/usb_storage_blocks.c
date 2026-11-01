@@ -81,3 +81,44 @@ int32_t usb_blocks_write(const usb_blocks_t *dev, uint32_t lba, uint32_t offset,
     }
     return (int32_t)size;
 }
+
+void usb_release_reset(usb_release_t *r) {
+    memset(r, 0, sizeof(*r));
+}
+
+void usb_release_stop(usb_release_t *r, bool load_eject) {
+    r->stopped = true;
+    if (load_eject)
+        r->ejected = true;
+}
+
+void usb_release_start(usb_release_t *r) {
+    r->ejected = false;
+    r->stopped = false;
+}
+
+/* Reading or writing means the host has not finished, whatever it said before. */
+void usb_release_access(usb_release_t *r) {
+    r->stopped = false;
+}
+
+void usb_release_unconfigured(usb_release_t *r) {
+    r->ejected = true;
+}
+
+void usb_release_suspend(usb_release_t *r, uint64_t now_us) {
+    r->suspended = true;
+    r->suspended_at_us = now_us;
+}
+
+void usb_release_resume(usb_release_t *r) {
+    r->suspended = false;
+}
+
+bool usb_release_medium_gone(const usb_release_t *r) {
+    return r->ejected;
+}
+
+bool usb_release_safe(const usb_release_t *r, uint64_t now_us) {
+    return r->ejected || r->stopped || (r->suspended && now_us - r->suspended_at_us >= USB_RELEASE_IDLE_US);
+}

@@ -123,7 +123,50 @@ static void test_failures(void) {
     assert(memcmp(disk, expect, sizeof(disk)) == 0);
 }
 
+static void test_release(void) {
+    usb_release_t r;
+
+    usb_release_reset(&r);
+    assert(!usb_release_safe(&r, 0));
+    assert(!usb_release_medium_gone(&r));
+
+    /* stop and unload: gone until the host loads it again */
+    usb_release_stop(&r, true);
+    assert(usb_release_safe(&r, 0));
+    assert(usb_release_medium_gone(&r));
+    usb_release_start(&r);
+    assert(!usb_release_safe(&r, 0));
+    assert(!usb_release_medium_gone(&r));
+
+    /* stop alone: the drive is still there, for a host that was only powering it down */
+    usb_release_stop(&r, false);
+    assert(usb_release_safe(&r, 0));
+    assert(!usb_release_medium_gone(&r));
+    usb_release_access(&r);
+    assert(!usb_release_safe(&r, 0));
+
+    /* a host that just goes silent: not at once, since a pause looks the same at first */
+    usb_release_suspend(&r, 1000);
+    assert(!usb_release_safe(&r, 1000));
+    assert(!usb_release_safe(&r, 1000 + USB_RELEASE_IDLE_US - 1));
+    assert(usb_release_safe(&r, 1000 + USB_RELEASE_IDLE_US));
+    assert(!usb_release_medium_gone(&r));
+    usb_release_resume(&r);
+    assert(!usb_release_safe(&r, 1000 + USB_RELEASE_IDLE_US));
+
+    /* an access does not undo an eject */
+    usb_release_stop(&r, true);
+    usb_release_access(&r);
+    assert(usb_release_safe(&r, 0));
+
+    usb_release_reset(&r);
+    usb_release_unconfigured(&r);
+    assert(usb_release_safe(&r, 0));
+    assert(usb_release_medium_gone(&r));
+}
+
 int main(void) {
+    test_release();
     test_aligned();
     test_unaligned();
     test_bounds();
