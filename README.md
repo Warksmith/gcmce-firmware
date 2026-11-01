@@ -122,6 +122,10 @@ Practical notes
 
 Hold Button 1 while connecting USB to use the microSD card as a removable drive, with no card reader. Eject it on the computer before unplugging. Button 2 still starts the UF2 firmware update mode, and wins if both are held. See [doc/usb-storage.md](doc/usb-storage.md).
 
+## Folder memory cards
+
+A card can keep its saves as individual Dolphin-compatible `.gci` files instead of one `.raw` image. Add `StorageBackend=FOLDER` to the `[Settings]` section of its `CardX.ini`, and its saves live in `CardX-1.folder` next to where the `.raw` would be. Existing `.raw` cards are not touched or converted. See [doc/folder-memory-cards.md](doc/folder-memory-cards.md).
+
 ## Known issues
 
 ### wii will not recognize the card as memory card
