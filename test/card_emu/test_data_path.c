@@ -23,6 +23,9 @@ static uint8_t sd_image[CARD_SIZE];
 static uint8_t available[SEGMENTS];
 static uint32_t card_size = CARD_SIZE;
 static unsigned sd_writes;
+static unsigned psram_reads;
+static bool folder_card;
+static uint8_t noted[SEGMENTS];
 static uint64_t now_us;
 static int lock_depth;
 static sim_timer_t timer;
@@ -43,6 +46,7 @@ uint64_t time_us_64(void) {
 
 void psram_read_dma(uint32_t addr, void *buf, size_t len, psram_cb_t cb) {
     assert(addr + len <= CARD_SIZE);
+    psram_reads++;
     memcpy(buf, &psram[addr], len);
     if (cb)
         cb();
@@ -72,6 +76,13 @@ int gc_cardman_write_segment(int segment, void *buf512) {
 }
 
 void gc_cardman_flush(void) {}
+
+bool gc_cardman_is_folder(void) { return folder_card; }
+
+void gc_folder_card_note_segment(uint32_t segment) {
+    assert(segment < SEGMENTS);
+    noted[segment] = 1;
+}
 
 static void reset(uint32_t size) {
     memset(psram, 0x11, sizeof(psram));
@@ -141,11 +152,39 @@ static void test_write_bounds(void) {
     assert(sd_writes == 0);
 }
 
+/* A folder card's marks only move on: core 0 must stay off the SD card and PSRAM here. */
+static void test_folder_card_marks(void) {
+    uint8_t page[128] = {0};
+    uint32_t generation;
+
+    reset(CARD_SIZE);
+    folder_card = true;
+    memset(noted, 0, sizeof(noted));
+    generation = gc_dirty_generation;
+
+    gc_mc_data_interface_write_mc(0x300080, page, sizeof(page));
+    assert(gc_dirty_generation != generation);
+    gc_mc_data_interface_flush();
+    assert(noted[0x300080 / 512U]);
+
+    gc_dirty_mark(5);
+    assert(gc_dirty_pending() == 1);
+    psram_reads = 0;
+    gc_dirty_task();
+    assert(noted[5]);
+    assert(gc_dirty_pending() == 0);
+    assert(psram_reads == 0);
+    assert(sd_writes == 0);
+
+    folder_card = false;
+}
+
 int main(void) {
     test_erase_high_address();
     test_erase_bounds();
     test_flush_after_idle_task();
     test_write_bounds();
+    test_folder_card_marks();
     puts("data path: all passed");
     return 0;
 }
