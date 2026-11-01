@@ -31,6 +31,12 @@ bool sd_is_dir(int fd);
 int sd_fd_is_open(int fd);
 
 
+/* raw sector access, never used together with the functions above */
+uint32_t sd_raw_init(void); /* returns the sector count, 0 if there is no usable card */
+bool sd_raw_read(uint32_t sector, uint8_t *dst, size_t count);
+bool sd_raw_write(uint32_t sector, const uint8_t *src, size_t count);
+bool sd_raw_sync(void);
+
 bool sd_read_sector(uint32_t sector, uint8_t* dst);
 bool sd_write_sector(uint32_t sector, const uint8_t* src);
 

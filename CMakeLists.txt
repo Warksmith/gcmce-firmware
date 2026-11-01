@@ -43,6 +43,8 @@ add_subdirectory(database)
 add_executable(${TARGET_NAME}
     src/main.c
     src/gc.c
+    src/usb_storage.c
+    src/usb_storage_blocks.c
 
     src/game_db/game_db.c
     src/wear_leveling/wear_leveling.c
@@ -69,6 +71,16 @@ PRIVATE
 target_compile_definitions(
     ${TARGET_NAME} PUBLIC
     PICO_XOSC_STARTUP_DELAY_MULTIPLIER=64
+    CFG_TUD_MSC=1
+    CFG_TUD_MSC_EP_BUFSIZE=16384
+    USBD_MANUFACTURER="BitFunX"
+    USBD_PRODUCT="FlipperMCE"
+)
+
+# USB storage mode swaps these out at runtime, see src/usb_storage.c
+target_link_options(${TARGET_NAME} PRIVATE
+    "LINKER:--wrap=tud_descriptor_device_cb"
+    "LINKER:--wrap=tud_descriptor_configuration_cb"
 )
 
 target_include_directories(${TARGET_NAME} PUBLIC
@@ -147,7 +159,7 @@ if(DEBUG_USB_UART)
         message(FATAL_ERROR "Misconfigured Debug Startup Delay: ${DEBUG_STARTUP_DELAY}")
     endif()
     target_compile_definitions(flippermce_common PUBLIC -DDEBUG_USB_UART -DMMCE_DEBUG -DPICO_STDIO_USB_CONNECT_WAIT_TIMEOUT_MS=${DEBUG_STARTUP_DELAY}*1000)
-    pico_enable_stdio_usb(${TARGET_NAME} 1)
-else()
-    pico_enable_stdio_usb(${TARGET_NAME} 0)
 endif()
+
+# Release builds link the USB stack only for storage mode and never start it otherwise.
+pico_enable_stdio_usb(${TARGET_NAME} 1)
