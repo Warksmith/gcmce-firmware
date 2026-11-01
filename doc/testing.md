@@ -69,7 +69,10 @@ Compiling and the host tests say nothing about these.
 1. Hold Button 1 and connect USB: a removable drive appears, on Windows, Linux and macOS.
 2. Check partitions and files against a card reader.
 3. Copy a file of several hundred MB both ways and compare checksums.
-4. Eject: the display shows `Safe to disconnect`.
+4. Eject, from the tray on Windows, and with `Eject` in Explorer: within a few seconds the
+   display shows `Safe to disconnect`. If it does not, flash the debug firmware and note the
+   letters on the last line, which are the signals that arrived. `L` stop and unload, `S`
+   stop, `A` allow removal, `Y` sync, `Z` suspend, `U` unconfigured.
 5. Power up with no button held, with USB connected: the device boots normally and no
    drive appears on a release build.
 6. Hold Button 2 while connecting USB: the RPI-RP2 drive appears.
@@ -83,7 +86,11 @@ Compiling and the host tests say nothing about these.
 
 ## Hardware checks: folder cards
 
-None of this has been done yet. Start with a card you can lose and a copy of the SD card.
+Start with a card you can lose and a copy of the SD card.
+
+Done so far, on a BitFunX GCMCE by hand: save, reload and the display's unsaved and saving
+messages, with PSO on 8, 16, 32 and 64 Mbit cards, and moving PSO's three files from a 32 to a
+64 Mbit card without `card.dat`. The games ran through Nintendont. The rest is still to do.
 
 Setup: set `StorageBackend=FOLDER` in one card's ini, leaving another as a `.raw` card.
 

@@ -297,6 +297,22 @@ static void test_import_saves(void) {
     CHECK(gc_folder_card_close());
 }
 
+/* The console's serial comes from the first 32 bytes of the header. New cards sharing it is
+ * what lets a protected save move between them, and a size must not change it. */
+static void test_new_cards_share_a_serial(void) {
+    static const uint32_t sizes[] = {4, 8, 16, 32, 64};
+    uint8_t first[32];
+
+    for (int i = 0; i < 5; i++) {
+        fresh();
+        CHECK(mount_size(sizes[i], 4) == GC_FOLDER_LOAD_DONE);
+        if (i == 0)
+            memcpy(first, sim_psram, sizeof(first));
+        CHECK(memcmp(first, sim_psram, sizeof(first)) == 0);
+        CHECK(gc_folder_card_close());
+    }
+}
+
 static void test_second_mount_writes_nothing(void) {
     fresh();
     make_gci("a.gci", "GAFE", "01", "one", 2, 11);
@@ -1733,6 +1749,7 @@ static const struct {
     TEST(test_empty_card_all_sizes),
     TEST(test_no_full_image),
     TEST(test_import_saves),
+    TEST(test_new_cards_share_a_serial),
     TEST(test_second_mount_writes_nothing),
     TEST(test_slots_are_stable),
     TEST(test_card_exactly_full),

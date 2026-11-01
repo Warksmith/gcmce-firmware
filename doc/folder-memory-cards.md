@@ -131,9 +131,11 @@ automatically, so clear it yourself when you are sure.
 
 ## Protected saves
 
-A few games tie a save to the card it was made on, usually through the card's serial number.
-Those saves can refuse to load on a different card, and F-Zero GX and Phantasy Star Online
-are the known examples.
+A few games tie a save to the card it was made on, through a serial number the console
+works out from the first 32 bytes of the card's header. Those saves can refuse to load on a
+card with a different serial. F-Zero GX (`f_zero.dat`) and Phantasy Star Online
+(`PSO_SYSTEM`, `PSO3_SYSTEM`) are the known examples. PSO's character and guild card files
+are not tied to the card.
 
 The firmware does not rewrite any save. Dolphin patches these saves when it builds a card;
 this firmware deliberately does not, so that a `.gci` is the same bytes on the way out as on
@@ -141,10 +143,17 @@ the way in. What it does do:
 
 - A card keeps one identity, stored in `.flippermeta/card.dat`, for as long as that file
   exists. Saves made on it keep working on it.
-- A new folder card has the same fixed identity as a new `.raw` card from this firmware.
-- To use a protected save from another card, give the folder card that card's identity:
-  make `.flippermeta/card.dat` the first 512 bytes of that card's image, before the first
-  mount or with the console off. This has not been tested on a console.
+- Every folder card that has not been formatted by a console has the same serial, whatever
+  its size or channel, as long as its encoding is the same. That serial also matches a new
+  `.raw` card from this firmware. So saves can move freely between such cards, without
+  copying `card.dat`. PSO's three files have been moved from a 32 Mbit card to a 64 Mbit card
+  this way and worked.
+- Formatting a card on a console gives it a new serial, so protected saves from other cards
+  will no longer match it, and its own will not match other cards.
+- To use a protected save from a card with another serial, give the folder card that card's
+  identity: make `.flippermeta/card.dat` the first 512 bytes of that card's image, with the
+  console off. The file must be from a card of the same encoding. This has not been tested
+  on a console.
 
 ## Backups
 
