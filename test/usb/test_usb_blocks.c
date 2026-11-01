@@ -123,6 +123,188 @@ static void test_failures(void) {
     assert(memcmp(disk, expect, sizeof(disk)) == 0);
 }
 
+#define AHEAD_SECTORS 4U
+
+static uint8_t ahead_buffer[AHEAD_SECTORS * USB_BLOCK_SIZE];
+static usb_ahead_t ahead;
+static const usb_blocks_t ahead_dev = { SECTORS, sim_read, sim_write, &ahead };
+
+static void reset_ahead(void) {
+    reset();
+    memset(&ahead, 0, sizeof(ahead));
+    ahead.buffer = ahead_buffer;
+    ahead.capacity = AHEAD_SECTORS;
+    ahead.next = USB_AHEAD_NO_SECTOR;
+}
+
+static void read_expect(uint32_t lba, uint32_t count) {
+    static uint8_t buf[USB_BLOCK_SIZE * 8];
+    uint32_t size = count * USB_BLOCK_SIZE;
+
+    assert(usb_blocks_read(&ahead_dev, lba, 0, buf, size) == (int32_t)size);
+    assert(memcmp(buf, &disk[lba * USB_BLOCK_SIZE], size) == 0);
+}
+
+static void test_ahead_in_order(void) {
+    /* the first read only shows where the host is: nothing suggests it will carry on */
+    reset_ahead();
+    read_expect(0, 4);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 1);
+
+    /* from the second, each request is answered from what was read after the last one */
+    read_expect(4, 4);
+    assert(reads == 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+    read_expect(8, 4);
+    assert(reads == 3);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 4);
+    read_expect(12, 4);
+    assert(reads == 4);
+
+    /* calling again without a new request does nothing */
+    usb_blocks_read_ahead(&ahead_dev);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 5);
+}
+
+static void test_ahead_small_steps(void) {
+    reset_ahead();
+    read_expect(0, 1);
+    read_expect(1, 1);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+
+    /* sectors 2 to 5 are held: no card access until the host reaches the end of them */
+    for (uint32_t i = 2; i < 5; i++) {
+        read_expect(i, 1);
+        usb_blocks_read_ahead(&ahead_dev);
+        assert(reads == 3);
+    }
+    read_expect(5, 1);
+    assert(reads == 3);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 4);
+    read_expect(6, 1);
+    assert(reads == 4);
+}
+
+static void test_ahead_out_of_order(void) {
+    /* a host jumping around gets no read-ahead, which would only delay its next request */
+    reset_ahead();
+    read_expect(10, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    read_expect(30, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    read_expect(5, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+
+    /* a request only partly held goes to the card, and still returns the right data */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+    read_expect(6, 4);
+    assert(reads == 4);
+    read_expect(3, 8);
+    assert(reads == 5);
+}
+
+static void test_ahead_end_of_card(void) {
+    reset_ahead();
+    read_expect(SECTORS - 6, 2);
+    read_expect(SECTORS - 4, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+    read_expect(SECTORS - 2, 2);
+    assert(reads == 3);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+
+    /* fewer sectors left than the buffer holds */
+    reset_ahead();
+    read_expect(SECTORS - 5, 1);
+    read_expect(SECTORS - 4, 1);
+    assert(reads == 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 3);
+    assert(ahead.count == 3);
+}
+
+static void test_ahead_writes(void) {
+    static uint8_t buf[USB_BLOCK_SIZE * 2];
+
+    /* a write must never leave old sectors to be served */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    memset(buf, 0xA5, sizeof(buf));
+    assert(usb_blocks_write(&ahead_dev, 4, 0, buf, sizeof(buf)) == (int32_t)sizeof(buf));
+    read_expect(4, 2);
+    assert(reads == 4);
+
+    /* nor may one that failed part way: the card may hold either version */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(ahead.count != 0);
+    fail_after = 0;
+    assert(usb_blocks_write(&ahead_dev, 4, 0, buf, sizeof(buf)) == -1);
+    fail_after = -1;
+    assert(ahead.count == 0);
+
+    /* read-ahead requested before a write is dropped with it */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    assert(usb_blocks_write(&ahead_dev, 20, 0, buf, sizeof(buf)) == (int32_t)sizeof(buf));
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(reads == 2);
+
+    /* a partial write goes through the same path */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(usb_blocks_write(&ahead_dev, 4, 100, buf, 50) == 50);
+    read_expect(4, 1);
+}
+
+static void test_ahead_failure(void) {
+    static uint8_t buf[USB_BLOCK_SIZE * 2];
+
+    /* a failed read-ahead reports nothing and keeps nothing, and the host's read finds out */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    fail_after = 0;
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(ahead.count == 0);
+    assert(usb_blocks_read(&ahead_dev, 4, 0, buf, sizeof(buf)) == -1);
+
+    /* and once the card works again, so does reading */
+    fail_after = -1;
+    read_expect(4, 2);
+}
+
+static void test_ahead_unaligned(void) {
+    static uint8_t buf[USB_BLOCK_SIZE * 3];
+
+    /* a transfer starting inside a sector still returns the right bytes */
+    reset_ahead();
+    read_expect(0, 2);
+    read_expect(2, 2);
+    usb_blocks_read_ahead(&ahead_dev);
+    assert(usb_blocks_read(&ahead_dev, 4, 100, buf, sizeof(buf)) == (int32_t)sizeof(buf));
+    assert(memcmp(buf, &disk[4 * USB_BLOCK_SIZE + 100], sizeof(buf)) == 0);
+}
+
 static void test_release(void) {
     usb_release_t r;
 
@@ -171,6 +353,13 @@ int main(void) {
     test_unaligned();
     test_bounds();
     test_failures();
+    test_ahead_in_order();
+    test_ahead_small_steps();
+    test_ahead_out_of_order();
+    test_ahead_end_of_card();
+    test_ahead_writes();
+    test_ahead_failure();
+    test_ahead_unaligned();
     puts("usb blocks: all passed");
     return 0;
 }
