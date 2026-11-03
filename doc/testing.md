@@ -16,6 +16,17 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src" sd2psx-build sh /src/test/run.
 | `test/folder/test_folder.c` | The folder card engine and `card_config.c`, on a simulated SD card and console |
 | `test/folder/test_settings.c` | `settings.c`: the global `StorageBackend` in `settings.ini` and flash |
 
+The settings tests also run the real card-manager startup selection and directory
+iterator: StartupCard parsing, restore precedence, numbered/named/new cards,
+channel 1, invalid names, missing configuration, and settings rewrite/reload.
+
+For hardware validation, set `[GC] CardRestore=OFF` and `StartupCard=Shared` in
+`settings.ini`, then power-cycle and confirm channel 1 of Shared opens. Repeat
+with Card12, a new card, and both storage backends. Enable CardRestore, select
+another card/channel, and confirm that it wins on the next power-up. Remove
+StartupCard with restore off to check Card1; also confirm subsequent GameID
+switching and menu settings changes still work. Hardware checks remain pending.
+
 ### Folder card tests
 
 `test/folder/run.sh [filter]` runs these on their own. `PF_VERBOSE=1` prints the engine's log

@@ -25,8 +25,10 @@ cc -std=gnu11 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation 
 cc -std=gnu11 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation -Wno-sign-compare \
     -Wno-pedantic -include stddef.h -include string.h -include stdlib.h \
     -fsanitize=address,undefined -fno-sanitize-recover=undefined \
+    -ffunction-sections -fdata-sections -Wl,--gc-sections -include ctype.h -include pico.h \
     $INCLUDES \
     "$ROOT/test/folder/test_settings.c" "$ROOT/test/folder/sim_sd.c" "$OUT/ini.o" \
+    "$ROOT/src/gc/gc_cardman.c" "$ROOT/src/util.c" "$ROOT/src/card_config.c" \
     -o "$OUT/test_settings"
 
 "$OUT/test_folder" "$@"
