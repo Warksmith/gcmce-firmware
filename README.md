@@ -33,6 +33,30 @@ StorageBackend=FOLDER
  See [doc/folder-memory-cards.md](doc/folder-memory-cards.md).
 
 
+## Load Card on Startup
+
+With `Card Restore` off, choose a fixed startup card in `.flippermce/settings.ini`:
+
+```ini
+[GC]
+CardRestore=OFF
+StartupCard=MyStartupCard
+```
+
+This opens channel 1 of `MemoryCards/GC/MyStartupCard` at power-up. You can also use a
+numbered card such as `StartupCard=Card12`, or a full GameID folder name.
+Missing cards are created through the normal card creation process, using the
+global/per-card storage backend and size settings. Existing cards are loaded normally.
+
+`CardRestore=ON` takes priority over `StartupCard`. An empty or omitted
+`StartupCard` keeps the original Card1 behavior. Use a single folder name of up
+to 31 characters, without path separators or filename-invalid characters;
+invalid values fall back to Card1. This setting is read from the SD card and
+preserved when the device rewrites settings; it does not reset flash settings.
+GameID switching can still select another card after startup. `DefaultCard` in
+`Game2Folder.ini` remains a separate fallback for unmatched GameIDs.
+
+
 ## USB storage mode
 
 Hold Button 1 while connecting USB to use the microSD card as a removable drive, with no card reader. Eject it on the computer before unplugging. Button 2 still starts the UF2 firmware update mode. (If both buttons are held, firmware update mode takes priority). See [doc/usb-storage.md](doc/usb-storage.md).
@@ -57,26 +81,10 @@ It has the following base feature set:
 
 If active, FlipperMCE will always boot to the last used card.
 
-With Card Restore off, choose a fixed startup card in `.flippermce/settings.ini`:
-
 ```ini
 [GC]
 CardRestore=OFF
-StartupCard=Shared
 ```
-
-This opens channel 1 of `MemoryCards/GC/Shared` at power-up. You can also use a
-numbered card such as `StartupCard=Card12`, or a full GameID folder name.
-Missing cards are created through the normal card creation process, using the
-global/per-card storage backend and size settings. Existing cards are loaded normally.
-
-`CardRestore=ON` takes priority over `StartupCard`. An empty or omitted
-`StartupCard` keeps the original Card1 behavior. Use a single folder name of up
-to 31 characters, without path separators or filename-invalid characters;
-invalid values fall back to Card1. This setting is read from the SD card and
-preserved when the device rewrites settings; it does not reset flash settings.
-GameID switching can still select another card after startup. `DefaultCard` in
-`Game2Folder.ini` remains a separate fallback for unmatched GameIDs.
 
 ### Game ID
 
