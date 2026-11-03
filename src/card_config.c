@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "ini.h"
 
@@ -29,21 +30,51 @@ typedef struct {
 } parse_card_config_t;
 
 typedef struct {
-    char game_id[15];
+    const char *game_id;
     char *card_folder;
     size_t card_folder_max_len;
+    size_t best_match;
+    bool matched;
+    bool use_default;
+    char default_card[MAX_FOLDER_NAME_LENGTH];
 } parse_custom_card_folder_t;
 
 static int parse_custom_card_folder(void *user, const char *section, const char *name, const char *value) {
     parse_custom_card_folder_t *ctx = user;
 
-    #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
-    if (MATCH("GC", ctx->game_id)) {
-        if (strlen(value) <= ctx->card_folder_max_len) {
-            strlcpy(ctx->card_folder, value, ctx->card_folder_max_len);
-        }
+    if (strcmp(section, "GC") != 0)
+        return 1;
+
+    if (strcmp(name, "UseDefaultCard") == 0) {
+        ctx->use_default = strcasecmp(value, "ON") == 0;
+        return 1;
     }
-    #undef MATCH
+    if (strcmp(name, "DefaultCard") == 0) {
+        strlcpy(ctx->default_card, value, sizeof(ctx->default_card));
+        return 1;
+    }
+
+    /* Only trailing stars: a bounded prefix comparison, without backtracking.
+     * Exact IDs outrank all prefixes; equal specificity keeps last-entry wins. */
+    size_t rank;
+    const char *star = strchr(name, '*');
+    if (star != NULL) {
+        rank = (size_t)(star - name);
+        const char *tail = star;
+        while (*tail == '*')
+            tail++;
+        if (*tail != '\0' || strncmp(name, ctx->game_id, rank) != 0)
+            return 1;
+    } else {
+        if (strcmp(name, ctx->game_id) != 0)
+            return 1;
+        rank = SIZE_MAX;
+    }
+    if (!ctx->matched || rank >= ctx->best_match) {
+        ctx->matched = true;
+        ctx->best_match = rank;
+        strlcpy(ctx->card_folder, value, ctx->card_folder_max_len);
+    }
 
     log(LOG_TRACE, "s=%s n=%s card_folder=%s\n", section, name, ctx->card_folder);
 
@@ -202,12 +233,16 @@ bool card_config_read_image(uint8_t buff[1032], const char* card_folder, const c
 
 
 void card_config_get_card_folder(const char* game_id, char* card_folder, size_t card_folder_max_len) {
-
+    if (card_folder == NULL || card_folder_max_len == 0)
+        return;
+    card_folder[0] = '\0';
+    if (game_id == NULL || game_id[0] == '\0')
+        return;
     parse_custom_card_folder_t ctx = {
+        .game_id = game_id,
         .card_folder = card_folder,
         .card_folder_max_len = card_folder_max_len
     };
-    memcpy(ctx.game_id, game_id, 15);
 
     int fd = sd_open(CUSTOM_CARDS_CONFIG_PATH, O_RDONLY);
     log(LOG_TRACE, "Looking for game_id=%s \n", game_id);
@@ -215,6 +250,8 @@ void card_config_get_card_folder(const char* game_id, char* card_folder, size_t 
     if (fd >= 0) {
         ini_parse_sd_file(fd, parse_custom_card_folder, &ctx);
         sd_close(fd);
+        if (!ctx.matched && ctx.use_default && ctx.default_card[0] != '\0')
+            strlcpy(card_folder, ctx.default_card, card_folder_max_len);
     }
 
     log(LOG_TRACE, "found card_folder=%s\n", card_folder);

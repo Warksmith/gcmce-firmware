@@ -46,6 +46,17 @@ sees, entry and data.
 | Corruption | A wrong bit in every stage write and every read, in a pass and in recovery |
 | Random | Sessions of random operations with power cuts at random points |
 | Selection | `StorageBackend` parsing, including what must stay `RAW` |
+| Game2Folder | Exact/prefix precedence, repeated stars, duplicate rules, section isolation, opt-in fallback, empty mappings, stale output and buffer bounds |
+
+### Hardware checks: Game2Folder
+
+With GameID enabled, put rules in `.flippermce/Game2Folder.ini` under `[GC]`.
+Use the full `DL-DOL-<ID>-<region>` emitted by your loader. Check an exact rule,
+overlapping trailing-star prefixes, and an unmatched game with fallback both off
+and on. Confirm the selected card and save/reload using both RAW and FOLDER
+backends. Switch from a mapped game to an unmapped game to check that the previous
+mapping is not retained. These new matching behaviors have host-test coverage;
+physical GameCube/Wii validation is still required.
 
 What the simulators cannot show: real FAT behaviour, SD card timing, and whether a real console
 and real games accept the card. Dolphin itself was not run against these files, so the
