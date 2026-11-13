@@ -18,7 +18,7 @@ FlipperMCE is a *MemoryCard Emulator* that is heavily based on sd2psx by develop
 | `game2folder-wildcards-default` | GameID prefix mappings and optional fallback | Upstream main |
 | `startup-card` | Configurable card at boot, with CardRestore precedence | Upstream main |
 
-Develop on the owning feature branch, then merge into `integration`. Submit the integrity fixes before folder cards. Branches under `archive/` preserve the former stacked history and are not PR candidates.
+Develop on the owning feature branch, then merge into `integration`. Submit the integrity fixes before folder cards. Keep `main` as an upstream mirror. The former stacked history is retained by the `v0.2` tag; the temporary archive branches have been removed.
 
 ## New Features in this repo
 
