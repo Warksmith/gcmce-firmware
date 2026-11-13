@@ -118,6 +118,10 @@ Practical notes
 - Keep names short — very long filenames may cause display or performance issues.
 - Store splash `.bin` files alongside that card's `CardX.ini` and save data in the same folder.
 
+## USB storage mode
+
+Hold Button 1 while connecting USB to use the microSD card as a removable drive, with no card reader. Eject it on the computer before unplugging. Button 2 still starts the UF2 firmware update mode, and wins if both are held. See [doc/usb-storage.md](doc/usb-storage.md).
+
 ## Known issues
 
 ### wii will not recognize the card as memory card

@@ -1,0 +1,83 @@
+#include "usb_storage_blocks.h"
+
+#include <string.h>
+
+static uint8_t partial[USB_BLOCK_SIZE];
+
+static bool in_range(const usb_blocks_t *dev, uint32_t lba, uint32_t offset, uint32_t size) {
+    uint64_t start = (uint64_t)lba * USB_BLOCK_SIZE + offset;
+    uint64_t end = (uint64_t)dev->sectors * USB_BLOCK_SIZE;
+
+    return size > 0 && start + size <= end;
+}
+
+int32_t usb_blocks_read(const usb_blocks_t *dev, uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t size) {
+    uint32_t sector = lba + offset / USB_BLOCK_SIZE;
+    uint32_t skip = offset % USB_BLOCK_SIZE;
+    uint32_t left = size;
+
+    if (!in_range(dev, lba, offset, size))
+        return -1;
+
+    while (left > 0) {
+        uint32_t whole = left / USB_BLOCK_SIZE;
+
+        if (skip == 0 && whole > 0) {
+            if (!dev->read(sector, buffer, whole))
+                return -1;
+            sector += whole;
+            buffer += whole * USB_BLOCK_SIZE;
+            left -= whole * USB_BLOCK_SIZE;
+        } else {
+            uint32_t part = USB_BLOCK_SIZE - skip;
+
+            if (part > left)
+                part = left;
+            if (!dev->read(sector, partial, 1))
+                return -1;
+            memcpy(buffer, &partial[skip], part);
+            sector++;
+            skip = 0;
+            buffer += part;
+            left -= part;
+        }
+    }
+    return (int32_t)size;
+}
+
+int32_t usb_blocks_write(const usb_blocks_t *dev, uint32_t lba, uint32_t offset, const uint8_t *buffer, uint32_t size) {
+    uint32_t sector = lba + offset / USB_BLOCK_SIZE;
+    uint32_t skip = offset % USB_BLOCK_SIZE;
+    uint32_t left = size;
+
+    if (!in_range(dev, lba, offset, size))
+        return -1;
+
+    while (left > 0) {
+        uint32_t whole = left / USB_BLOCK_SIZE;
+
+        if (skip == 0 && whole > 0) {
+            if (!dev->write(sector, buffer, whole))
+                return -1;
+            sector += whole;
+            buffer += whole * USB_BLOCK_SIZE;
+            left -= whole * USB_BLOCK_SIZE;
+        } else {
+            uint32_t part = USB_BLOCK_SIZE - skip;
+
+            if (part > left)
+                part = left;
+            /* the rest of the sector keeps what it holds */
+            if (!dev->read(sector, partial, 1))
+                return -1;
+            memcpy(&partial[skip], buffer, part);
+            if (!dev->write(sector, partial, 1))
+                return -1;
+            sector++;
+            skip = 0;
+            buffer += part;
+            left -= part;
+        }
+    }
+    return (int32_t)size;
+}
