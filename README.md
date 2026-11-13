@@ -6,6 +6,22 @@
 
 FlipperMCE is a *MemoryCard Emulator* that is heavily based on sd2psx by developer @xyzz (see [here](https://github.com/sd2psx)).
 
+## Branch organization
+
+`integration` combines the fork's features for builds and testing. Each feature branch is scoped for a separate upstream PR against `FlipperMCE/firmware:main`:
+
+| Branch | Scope | Prerequisite |
+| --- | --- | --- |
+| `card-data-integrity` | Erase bounds, dirty flushes and card exit fixes | Upstream main |
+| `mass-storage` | USB microSD access, safe-disconnect display and read-ahead | Upstream main |
+| `folder-backend` | GCI folder cards, recovery, tests and global backend setting | `card-data-integrity` |
+| `game2folder-wildcards-default` | GameID prefix mappings and optional fallback | Upstream main |
+| `startup-card` | Configurable card at boot, with CardRestore precedence | Upstream main |
+
+Develop on the owning feature branch, then merge into `integration`. Submit the integrity fixes before folder cards. Branches under `archive/` preserve the former stacked history and are not PR candidates.
+
+## New Features in this repo
+
 ## Folder-Backed Memory Cards (experimental)
 
 A card can keep its saves as individual Dolphin-compatible `.gci` files instead of one `.raw` image.
@@ -31,6 +47,38 @@ StorageBackend=FOLDER
  See [doc/folder-memory-cards.md](doc/folder-memory-cards.md).
 
 
+## Load Card on Startup
+
+With `Card Restore` off, choose a fixed startup card in `.flippermce/settings.ini`:
+
+```ini
+[GC]
+CardRestore=OFF
+StartupCard=MyStartupCard
+```
+
+This opens channel 1 of `MemoryCards/GC/MyStartupCard` at power-up. You can also use a
+numbered card such as `StartupCard=Card12`, or a full GameID folder name.
+Missing cards are created through the normal card creation process, using the
+global/per-card storage backend and size settings. Existing cards are loaded normally.
+
+`CardRestore=ON` takes priority over `StartupCard`. An empty or omitted
+`StartupCard` keeps the original Card1 behavior. Use a single folder name of up
+to 31 characters, without path separators or filename-invalid characters;
+invalid values fall back to Card1. This setting is read from the SD card and
+preserved when the device rewrites settings; it does not reset flash settings.
+GameID switching can still select another card after startup. `DefaultCard` in
+`Game2Folder.ini` remains a separate fallback for unmatched GameIDs.
+
+
+## USB storage mode
+
+Hold Button 1 while connecting USB to use the microSD card as a removable drive, with no card reader. Eject it on the computer before unplugging. Button 2 still starts the UF2 firmware update mode. (If both buttons are held, firmware update mode takes priority). See [doc/usb-storage.md](doc/usb-storage.md).
+
+#### ==End of features specific to this fork==
+
+
+
 ## Features
 
 It has the following base feature set:
@@ -47,25 +95,10 @@ It has the following base feature set:
 
 If active, FlipperMCE will always boot to the last used card.
 
-With Card Restore off, choose a fixed startup card in `.flippermce/settings.ini`:
-
 ```ini
 [GC]
 CardRestore=OFF
-StartupCard=Shared
 ```
-
-This opens channel 1 of `MemoryCards/GC/Shared` at power-up. You can also use a
-numbered card such as `StartupCard=Card12`, or a full GameID folder name.
-Missing cards are created through the normal card creation process, using the
-configured card size. Existing cards are loaded normally.
-
-`CardRestore=ON` takes priority over `StartupCard`. An empty or omitted
-`StartupCard` keeps the original Card1 behavior. Use a single folder name of up
-to 31 characters, without path separators or filename-invalid characters;
-invalid values fall back to Card1. This setting is read from the SD card and
-preserved when the device rewrites settings; it does not reset flash settings.
-GameID switching can still select another card after startup.
 
 ### Game ID
 
@@ -117,7 +150,7 @@ behavior, even with fallback enabled.
 Targets are card folder names under `MemoryCards/GC`, limited to 31 characters
 (longer names are truncated). For example, `DefaultCard=Shared` selects
 `MemoryCards/GC/Shared` and uses its normal card/channel naming and settings.
-GameID must be enabled in
+Both raw and folder-backed cards are supported. GameID must be enabled in
 `settings.ini`; this does not change boot-time Card Restore behavior.
 The lookup runs during card selection, with no extra work on card reads or writes.
 
@@ -197,9 +230,6 @@ Practical notes
 - Keep names short — very long filenames may cause display or performance issues.
 - Store splash `.bin` files alongside that card's `CardX.ini` and save data in the same folder.
 
-## USB storage mode
-
-Hold Button 1 while connecting USB to use the microSD card as a removable drive, with no card reader. Eject it on the computer before unplugging. Button 2 still starts the UF2 firmware update mode, and wins if both are held. See [doc/usb-storage.md](doc/usb-storage.md).
 
 ## Known issues
 
