@@ -76,7 +76,9 @@ saves whatever its size.
 
 ## Adding saves from Dolphin or a computer
 
-1. Start [USB storage mode](usb-storage.md), or put the SD card in a reader.
+1. Put the SD card in a reader. If your firmware also includes the separate USB
+   feature (as the integration build does), you can use
+   [USB storage mode](https://github.com/Warksmith/gcmce-firmware/blob/integration/doc/usb-storage.md).
 2. Copy `.gci` files into the card's `.folder` directory. Dolphin keeps them in
    `User/GC/<region>/Card A`. Any file name ending in `.gci` will do.
 3. Eject properly and boot.
