@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds the FlipperMCE firmware, with and without USB serial logging, into build/docker/.
 # Keep /build in a volume so that later runs only recompile what changed.
-# See doc/testing.md.
+# See doc/testing-usb.md.
 set -eo pipefail
 
 git config --global --add safe.directory '*'

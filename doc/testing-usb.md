@@ -12,7 +12,6 @@ MSYS_NO_PATHCONV=1 docker run --rm -v "$PWD:/src" sd2psx-build sh /src/test/run.
 | Test | Covers |
 | --- | --- |
 | `test/usb/test_usb_blocks.c` | USB transfers: bounds, partial sectors, card errors |
-| `test/card_emu/test_data_path.c` | The real `gc_mc_data_interface.c` and `gc_dirty.c`: erases, flushes, bounds |
 
 ## Firmware builds
 

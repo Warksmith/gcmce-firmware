@@ -111,5 +111,5 @@ The firmware reads and writes exFAT through the same library calls as FAT32. Its
 
 ## Verifying it on hardware
 
-The host tests cover the transfer logic only. See [testing.md](testing.md) for the USB
+The host tests cover the transfer logic only. See [testing-usb.md](testing-usb.md) for the USB
 checks that need a real device.

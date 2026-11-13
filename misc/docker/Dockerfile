@@ -1,4 +1,4 @@
-# Reproducible firmware/host-test toolchain. See doc/folder-cards.md.
+# Reproducible firmware/host-test toolchain. See doc/testing-usb.md.
 FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential ca-certificates cmake gcc-arm-none-eabi git \
