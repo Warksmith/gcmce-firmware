@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 void settings_load_sd(void);
+void settings_load_flash(void);
 void settings_init(void);
 
 

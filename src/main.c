@@ -20,6 +20,7 @@
 #include "pico/time.h"
 #include "sd.h"
 #include "settings.h"
+#include "usb_storage.h"
 #include "version/version.h"
 #include "psram/psram.h"
 
@@ -31,17 +32,28 @@
 
 #include "game_db/game_db.h"
 
-/* reboot to bootloader if either button is held on startup
-   to make the device easier to flash when assembled inside case */
-static void check_bootloader_reset(void) {
+/* boot buttons, as indexes for input_is_down_raw() */
+#define BOOT_BTN_USB_STORAGE 0
+#define BOOT_BTN_BOOTLOADER 1
+
+/* reboot to bootloader if button 2 is held on startup to make the device
+   easier to flash when assembled inside case. returns true if button 1 is
+   held, which selects USB storage mode. button 2 wins if both are held */
+static bool check_boot_buttons(void) {
+    bool usb_storage = true;
+
     /* make sure at least DEBOUNCE interval passes or we won't get inputs */
     for (int i = 0; i < 2 * DEBOUNCE_MS; ++i) {
         input_task();
         sleep_ms(1);
+        if (i >= DEBOUNCE_MS && !input_is_down_raw(BOOT_BTN_USB_STORAGE))
+            usb_storage = false;
     }
 
-    if (input_is_down_raw(0) || input_is_down_raw(1))
+    if (input_is_down_raw(BOOT_BTN_BOOTLOADER))
         reset_usb_boot(0, 0);
+
+    return usb_storage;
 }
 
 static void debug_task(void) {
@@ -101,7 +113,7 @@ static void debug_task(void) {
 
 int main() {
     input_init();
-    check_bootloader_reset();
+    bool usb_storage = check_boot_buttons();
 
     printf("prepare...\n");
 
@@ -111,7 +123,9 @@ int main() {
     clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, mhz * 1000000, mhz * 1000000);
 
 #if DEBUG_USB_UART
-    stdio_usb_init();
+    /* storage mode takes the USB port for itself */
+    if (!usb_storage)
+        stdio_usb_init();
 #else
     //stdio_uart_init_full(UART_PERIPH, UART_BAUD, UART_TX, UART_RX);
 #endif
@@ -123,6 +137,12 @@ int main() {
     printf("\n\n\nStarted! Clock %d; bus priority 0x%X\n", (int)clock_get_hz(clk_sys), (unsigned)bus_ctrl_hw->priority);
     printf("FlipperMCE Version %s\n", flippermce_version);
     printf("FlipperMCE HW Variant: %s\n", flippermce_variant);
+
+    /* the SD card belongs to the host in this mode, so nothing here may mount it */
+    if (usb_storage) {
+        settings_load_flash();
+        usb_storage_run();
+    }
 
     settings_init();
 

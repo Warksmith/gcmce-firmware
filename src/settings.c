@@ -178,7 +178,7 @@ void settings_load_sd(void) {
     }
 }
 
-void settings_init(void) {
+void settings_load_flash(void) {
     printf("Settings - init\n");
     if (wear_leveling_init() == WEAR_LEVELING_FAILED) {
         printf("failed to init wear leveling, reset settings\n");
@@ -194,7 +194,10 @@ void settings_init(void) {
         printf("version magic mismatch, reset settings\n");
         settings_reset();
     }
+}
 
+void settings_init(void) {
+    settings_load_flash();
     settings_load_sd();
 }
 
