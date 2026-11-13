@@ -6,6 +6,31 @@
 
 FlipperMCE is a *MemoryCard Emulator* that is heavily based on sd2psx by developer @xyzz (see [here](https://github.com/sd2psx)).
 
+## Folder-Backed Memory Cards (experimental)
+
+A card can keep its saves as individual Dolphin-compatible `.gci` files instead of one `.raw` image.
+
+**Per memory card:**  Add `StorageBackend=FOLDER` to the `[Settings]` section of its `CardX.ini`, and its saves live in `CardX-1.folder` next to where the `.raw` would be.
+
+`F:\MemoryCards\GC\Card123\Card123.ini`
+```
+[Settings]
+StorageBackend=FOLDER
+
+```
+
+**Global:** The same section in `.flippermce/settings.ini` makes it the default for every card that does not set its own. (Existing `.raw` cards are not touched or converted.) Works for cards created automatically via GameID.
+
+`F:\.flippermce\settings.ini`
+```
+[Settings]
+StorageBackend=FOLDER
+
+```
+
+ See [doc/folder-memory-cards.md](doc/folder-memory-cards.md).
+
+
 ## Features
 
 It has the following base feature set:

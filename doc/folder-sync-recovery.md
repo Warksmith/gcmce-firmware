@@ -171,7 +171,7 @@ the dirty structures.
 A pass that reads PSRAM takes the lock for one page at a time, the same as `gc_dirty_task()`
 does for a `.raw` card. It only starts when the console is quiet, so contention needs the console
 to come back in the middle of a page. That is the same class of risk `.raw` cards already run,
-but it should be looked at on hardware: see [testing.md](testing.md).
+but it should be looked at on hardware: see [testing-folder.md](testing-folder.md).
 
 ## Memory
 
