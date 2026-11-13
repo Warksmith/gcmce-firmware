@@ -22,4 +22,12 @@ cc -std=gnu11 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation 
     "$ROOT/src/card_config.c" "$OUT/ini.o" \
     -o "$OUT/test_folder"
 
-exec "$OUT/test_folder" "$@"
+cc -std=gnu11 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-format-truncation -Wno-sign-compare \
+    -Wno-pedantic -include stddef.h -include string.h -include stdlib.h \
+    -fsanitize=address,undefined -fno-sanitize-recover=undefined \
+    $INCLUDES \
+    "$ROOT/test/folder/test_settings.c" "$ROOT/test/folder/sim_sd.c" "$OUT/ini.o" \
+    -o "$OUT/test_settings"
+
+"$OUT/test_folder" "$@"
+"$OUT/test_settings"

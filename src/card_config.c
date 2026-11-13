@@ -113,7 +113,7 @@ void card_config_read_channel_name(const char* card_folder, const char* card_bas
     }
 }
 
-card_backend_t card_config_get_gc_backend(const char* card_folder, const char* card_base) {
+card_backend_t card_config_get_gc_backend(const char* card_folder, const char* card_base, card_backend_t default_backend) {
     char config_path[MAX_CFG_PATH_LENGTH];
     int fd;
     parse_card_config_t ctx = {
@@ -122,7 +122,7 @@ card_backend_t card_config_get_gc_backend(const char* card_folder, const char* c
         .channel_name_max_len = 0,
         .card_size = 0,
         .max_channels = 8,
-        .backend = CARD_BACKEND_RAW
+        .backend = default_backend
     };
 
     card_config_get_ini_name(card_folder, card_base, config_path);

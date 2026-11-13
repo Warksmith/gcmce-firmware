@@ -23,6 +23,22 @@ CardSize=16
 The value is `FOLDER` or `RAW`, in capitals. Anything else, or no line at all, means `RAW`.
 A folder existing on the SD card does not turn the feature on.
 
+To make folder cards the default for every card, add the same section to the global
+`.flippermce/settings.ini`:
+
+```ini
+[Settings]
+StorageBackend=FOLDER
+```
+
+This applies to any card with no `StorageBackend` line of its own, including Game ID cards as
+they are created. A card that has the line keeps its choice, so `StorageBackend=RAW` in a
+`CardX.ini` keeps that card on its `.raw` image.
+
+Cards that already have a `.raw` image switch too, and they are not converted: the console sees
+an empty folder card until saves are copied in. The image stays where it is, and setting
+`StorageBackend=RAW` for the card, or removing the global line, brings it back.
+
 Each channel of a card has its own folder, next to where its `.raw` would be:
 
 ```text
