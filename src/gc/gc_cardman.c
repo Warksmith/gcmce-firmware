@@ -435,7 +435,7 @@ static void gc_cardman_continue(void) {
         uint64_t slice_start = time_us_64();
         while ((time_us_64() - slice_start < MAX_SLICE_LENGTH)) {
             cardprog_pos = (uint32_t)cardman_segments_done * SEGMENT_SIZE;
-            sd_seek(gc_cardman_fd, (int32_t)(cardprog_pos * SEGMENT_SIZE), SEEK_SET);
+            sd_seek(gc_cardman_fd, (int32_t)cardprog_pos, SEEK_SET);
             if (cardprog_pos >= card_size) {
                 sd_flush(gc_cardman_fd);
                 log(LOG_INFO, "OK!\n");
