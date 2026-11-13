@@ -75,7 +75,14 @@ static const uint8_t storage_desc_cfg[STORAGE_CFG_LEN] = {
 
 static bool usb_storage_active;
 static usb_release_t host;
-static usb_blocks_t sd_blocks = { .read = sd_raw_read, .write = sd_raw_write };
+/* one transfer's worth, so that a hit answers TinyUSB's next request in full */
+static uint8_t ahead_buffer[CFG_TUD_MSC_EP_BUFSIZE];
+static usb_ahead_t sd_ahead = {
+    .buffer = ahead_buffer,
+    .capacity = sizeof(ahead_buffer) / USB_BLOCK_SIZE,
+    .next = USB_AHEAD_NO_SECTOR,
+};
+static usb_blocks_t sd_blocks = { .read = sd_raw_read, .write = sd_raw_write, .ahead = &sd_ahead };
 
 #if DEBUG_USB_UART
 /* Storage mode replaces the debug console, so in a debug build the display shows which of
@@ -263,6 +270,9 @@ void usb_storage_run(void) {
 
     while (true) {
         tud_task();
+
+        if (medium_ready())
+            usb_blocks_read_ahead(&sd_blocks);
 
         /* the display blocks while it updates, so only touch it when the text changes */
         storage_status_t status = get_status();
