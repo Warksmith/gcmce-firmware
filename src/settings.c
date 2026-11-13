@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include "card_config.h"
 
 #include "debug.h"
 #include "pico/multicore.h"
@@ -48,6 +49,8 @@ _Static_assert(sizeof(settings_t) == 48, "unexpected padding in the settings str
 
 static settings_t settings;
 static serialized_settings_t serialized_settings;
+/* SD-only configuration: do not change the flash layout or reset existing settings. */
+static char startup_card[MAX_FOLDER_NAME_LENGTH];
 static const char settings_path[] = "/.flippermce/settings.ini";
 
 static void settings_update_part(void *settings_ptr, uint32_t sz);
@@ -58,7 +61,22 @@ static int parse_card_configuration(void *user, const char *section, const char 
 
     #define MATCH(s, n) strcmp(section, s) == 0 && strcmp(name, n) == 0
     #define DIFFERS(v, s) ((strcmp(v, "ON") == 0) != s)
-    if (MATCH("GC", "CardRestore")
+    if (MATCH("GC", "StartupCard")) {
+        /* A single directory name, never a path. Reject rather than truncate. */
+        startup_card[0] = '\0';
+        size_t len = strlen(value);
+        if (len > 0 && len < sizeof(startup_card) &&
+            strcmp(value, ".") != 0 && strcmp(value, "..") != 0 &&
+            value[len - 1] != '.' && value[len - 1] != ' ' &&
+            strpbrk(value, "/\\:*?\"<>|") == NULL) {
+            bool valid = true;
+            for (size_t i = 0; i < len; i++)
+                if ((unsigned char)value[i] < 32)
+                    valid = false;
+            if (valid)
+                memcpy(startup_card, value, len + 1);
+        }
+    } else if (MATCH("GC", "CardRestore")
         && DIFFERS(value, ((_s->gc_flags & SETTINGS_GC_FLAGS_CARD_RESTORE) > 0))) {
         _s->gc_flags ^= SETTINGS_GC_FLAGS_CARD_RESTORE;
     } else if (MATCH("GC", "GameID")
@@ -127,7 +145,7 @@ static void settings_serialize(void) {
     if (!sd_exists("/.flippermce/")) {
         sd_mkdir("/.flippermce/");
     }
-    fd = sd_open(settings_path, O_RDWR | O_CREAT);
+    fd = sd_open(settings_path, O_RDWR | O_CREAT | O_TRUNC);
     if (fd >= 0) {
         printf("Serializing Settings\n");
         char line_buffer[256] = { 0x0 };
@@ -140,6 +158,8 @@ static void settings_serialize(void) {
         written = (size_t)snprintf(line_buffer, 256, "[GC]\n");
         sd_write(fd, line_buffer, written);
         written = (size_t)snprintf(line_buffer, 256, "CardRestore=%s\n", ((settings.gc_flags & SETTINGS_GC_FLAGS_CARD_RESTORE) > 0) ? "ON" : "OFF");
+        sd_write(fd, line_buffer, written);
+        written = (size_t)snprintf(line_buffer, 256, "StartupCard=%s\n", startup_card);
         sd_write(fd, line_buffer, written);
         written = (size_t)snprintf(line_buffer, 256, "GameID=%s\n", ((settings.gc_flags & SETTINGS_GC_FLAGS_GAME_ID) > 0) ? "ON" : "OFF");
         sd_write(fd, line_buffer, written);
@@ -169,6 +189,7 @@ static void settings_reset(void) {
 }
 
 void settings_load_sd(void) {
+    startup_card[0] = '\0';
     sd_init(false);
     if (sd_exists(settings_path)) {
         printf("Reading settings from %s\n", settings_path);
@@ -270,6 +291,10 @@ void settings_set_gc_cardsize(uint8_t size) {
 
 bool settings_get_gc_card_restore(void) {
     return (settings.gc_flags & SETTINGS_GC_FLAGS_CARD_RESTORE);
+}
+
+const char *settings_get_gc_startup_card(void) {
+    return startup_card;
 }
 
 void settings_set_gc_card_restore(bool card_restore) {

@@ -5,6 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <strings.h>
 
 #include "card_emu/gc_mc_data_interface.h"
 
@@ -120,6 +122,31 @@ static void set_default_card() {
         }
     } else {
         set_default_numbered_card();
+        const char *startup = settings_get_gc_startup_card();
+        if (startup[0]) {
+            strlcpy(folder_name, startup, sizeof(folder_name));
+            /* Keep numbered-card navigation working for canonical CardN names. */
+            char *end = NULL;
+            unsigned long number = 0;
+            if (strncasecmp(startup, "Card", 4) == 0)
+                number = strtoul(startup + 4, &end, 10);
+            char numbered[MAX_FOLDER_NAME_LENGTH];
+            snprintf(numbered, sizeof(numbered), "Card%lu", number);
+            if (number >= IDX_MIN && number <= UINT16_MAX &&
+                *end == '\0' && strcasecmp(startup, numbered) == 0) {
+                card_idx = (int)number;
+            } else {
+                cardman_state = GC_CM_STATE_NAMED;
+                card_idx = 0; /* A new/not-browsable folder starts before the named list. */
+                char candidate[MAX_FOLDER_NAME_LENGTH];
+                for (int i = 0; try_set_named_card_folder(CARD_HOME_GC, i, candidate, sizeof(candidate)); i++) {
+                    if (strcasecmp(candidate, startup) == 0) {
+                        card_idx = i + 1;
+                        break;
+                    }
+                }
+            }
+        }
     }
     if (folder_name[0] == 0x00)
         snprintf(folder_name, sizeof(folder_name), "Card%d", card_idx);
