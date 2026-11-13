@@ -9,7 +9,7 @@ reader is needed to manage memory cards, firmware files or settings.
 2. Hold **Button 1** while connecting USB, then release it.
 3. The computer sees a removable drive. Every partition and file on the card is there.
 4. Eject the drive on the computer before unplugging. The display shows `Safe to disconnect`
-   once the computer has released it.
+   a few seconds after the computer has released it.
 5. Unplug. The next power-up boots normally.
 
 Button 2 at power-up still starts the UF2 firmware update mode. If both buttons are held,
@@ -20,7 +20,7 @@ with no button held does nothing new: a release build does not start USB at all.
 | --- | --- |
 | `Waiting for PC` | No computer has configured the device yet |
 | `Connected` | In use by the computer. Eject before unplugging |
-| `Safe to disconnect` | Released by the computer |
+| `Safe to disconnect` | Released by the computer, or the computer has gone quiet |
 | `SD Error` | No usable card. Check it and reconnect |
 
 ## What it does and does not do
@@ -36,6 +36,11 @@ for the card to finish.
 
 Unplugging without ejecting can damage the filesystem exactly as it can with any USB
 drive. The computer may still be holding writes of its own.
+
+Computers do not all announce an eject, so the device takes any of these as the release: a
+SCSI stop, with or without unload, the host unconfiguring it, or the USB bus suspended for
+2 seconds. A computer going to sleep suspends the bus too, so `Safe to disconnect` can also
+appear then, and `Connected` returns when it wakes. Eject first even so.
 
 ## Technical notes
 
