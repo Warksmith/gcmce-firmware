@@ -44,3 +44,5 @@ Compiling and the host tests say nothing about these.
    (`PIN_BTN_LEFT`, GPIO 21).
 10. After using storage mode, boot the console and load a save: normal operation is
     unchanged.
+
+USB read-ahead tests cover sequential reads, invalidation on writes, and transfer boundaries.
