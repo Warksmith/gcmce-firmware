@@ -6,6 +6,13 @@ add_library(gc_card STATIC
                 ${CMAKE_CURRENT_SOURCE_DIR}/card_emu/gc_mc_data_interface.c
                 ${CMAKE_CURRENT_SOURCE_DIR}/card_emu/gc_unlock.c
                 ${CMAKE_CURRENT_SOURCE_DIR}/gc_cardman.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_fs.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_gci.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_folder_card.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_folder_import.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_folder_meta.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_folder_sync.c
+                ${CMAKE_CURRENT_SOURCE_DIR}/gc_folder_port_pico.c
             )
 
 target_include_directories(gc_card

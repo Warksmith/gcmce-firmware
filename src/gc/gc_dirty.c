@@ -1,6 +1,7 @@
 #include "gc_dirty.h"
 #include "psram.h"
 #include "gc_cardman.h"
+#include "gc_folder_card.h"
 #include "debug.h"
 
 #include "bigmem.h"
@@ -13,6 +14,7 @@
 
 spin_lock_t *gc_dirty_spin_lock;
 volatile uint32_t gc_dirty_lockout;
+volatile uint32_t gc_dirty_generation;
 int gc_dirty_activity = 0;
 
 static int num_dirty;
@@ -40,6 +42,8 @@ void gc_dirty_init(void) {
 }
 
 void __time_critical_func(gc_dirty_mark)(uint32_t sector) {
+    gc_dirty_generation++;
+
     if (sector < (sizeof(dirty_map) * 8) ) {
         /* already marked? */
         if (dirty_map_is_marked(sector))
@@ -72,6 +76,10 @@ static void heapify(int i) {
     }
 }
 
+int gc_dirty_pending(void) {
+    return num_dirty;
+}
+
 int gc_dirty_get_marked(void) {
     if (num_dirty == 0)
         return -1;
@@ -88,9 +96,28 @@ int gc_dirty_get_marked(void) {
     return ret;
 }
 
+/* a folder card reads PSRAM itself, as whole saves at consistent moments, so here its marks
+   only move on to its own change tracking. nothing touches the SD card or PSRAM */
+static void gc_dirty_drain_to_folder_card(void) {
+    while (1) {
+        gc_dirty_lock();
+        int sector = gc_dirty_get_marked();
+        gc_dirty_unlock();
+        if (sector == -1)
+            break;
+        gc_folder_card_note_segment((uint32_t)sector);
+    }
+    gc_dirty_activity = gc_dirty_lockout_expired() ? 0 : 1;
+}
+
 /* this goes through blocks in psram marked as dirty and flushes them to sd */
 void gc_dirty_task(void) {
     static uint8_t flushbuf[512];
+
+    if (gc_cardman_is_folder()) {
+        gc_dirty_drain_to_folder_card();
+        return;
+    }
 
     int num_after = 0;
     int hit = 0;

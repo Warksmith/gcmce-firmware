@@ -430,8 +430,17 @@ void evt_menu_page(lv_event_t *event) {
     }
 }
 
+/* folder cards report here, and the strings are constants */
 static void update_main_header(void) {
-    lv_label_set_text(main_header, "GC Memory Card");
+    static const char *shown;
+    static bool initialized;
+    const char *status = gc_cardman_get_status_text();
+
+    if (!initialized || status != shown) {
+        lv_label_set_text(main_header, status ? status : "GC Memory Card");
+        shown = status;
+        initialized = true;
+    }
 }
 
 static void evt_go_back(lv_event_t *event) {
@@ -1015,10 +1024,18 @@ void gui_task(void) {
     char card_name[127];
     const char *folder_name = NULL;
 
+    /* the splash or a game image must not hide that a save is at risk */
+    if (gc_cardman_has_error() && (ui_state == UI_STATE_SPLASH || ui_state == UI_STATE_GAME_IMG)) {
+        ui_state = UI_STATE_MAIN;
+        oled_update_last_action_time();
+    }
+
     gui_update_state();
 
 
     if (ui_state == UI_STATE_MAIN) {
+        update_main_header();
+
         static int displayed_card_idx = -1;
         static int displayed_card_channel = -1;
         static gc_cardman_state_t cardman_state = GC_CM_STATE_NORMAL;
@@ -1028,7 +1045,6 @@ void gui_task(void) {
 
         if (displayed_card_idx != gc_cardman_get_idx() || displayed_card_channel != gc_cardman_get_channel() || cardman_state != gc_cardman_get_state() ||
             refresh_gui) {
-            lv_label_set_text(main_header, "GC Memory Card");
             displayed_card_idx = gc_cardman_get_idx();
             displayed_card_channel = gc_cardman_get_channel();
             folder_name = gc_cardman_get_folder_name();
