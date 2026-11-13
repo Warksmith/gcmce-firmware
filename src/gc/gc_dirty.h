@@ -9,6 +9,7 @@
 
 extern spin_lock_t *gc_dirty_spin_lock;
 extern volatile uint32_t gc_dirty_lockout;
+extern volatile uint32_t gc_dirty_generation; /* console writes, under the lock */
 
 static inline void __time_critical_func(gc_dirty_lock)(void) {
     spin_lock_unsafe_blocking(gc_dirty_spin_lock);
@@ -30,6 +31,7 @@ static inline int __time_critical_func(gc_dirty_lockout_expired)(void) {
 void gc_dirty_init(void);
 int gc_dirty_get_marked(void);
 void gc_dirty_mark(uint32_t sector);
+int gc_dirty_pending(void);
 void gc_dirty_task(void);
 
 extern int gc_dirty_activity;

@@ -44,6 +44,8 @@ volatile uint16_t mmceman_cnum;
 char mmceman_gameid[251] = {0x00};
 static uint64_t mmceman_switching_timeout = 0;
 
+#define MMCEMAN_SAVE_RETRY_US (5 * 1000 * 1000)
+
 void gc_mmceman_task(void) {
     if ((mmceman_cmd != 0) && (!gc_mc_data_interface_write_occured())) {
         switch (mmceman_cmd) {
@@ -88,6 +90,7 @@ void gc_mmceman_task(void) {
             case MMCEMAN_CMDS_SET_ACCESS_MODE: {
                 if (gc_mmceman_block_get_sd_mode()) {
                     gc_mc_data_interface_flush();
+                    gc_cardman_final_flush();
                     gc_cardman_set_sd_mode(true);
                     gui_activate_sd_mode();
                 } else {
@@ -115,12 +118,23 @@ void gc_mmceman_task(void) {
         && (mmceman_switching_timeout < time_us_64())
         && !input_is_any_down()) {
 
+        /* a card that cannot save stays mounted: its changes only exist in PSRAM */
+        if (gc_cardman_save_failing()) {
+            mmceman_switching_timeout = time_us_64() + MMCEMAN_SAVE_RETRY_US;
+            return;
+        }
+
         log(LOG_INFO, "%s Switching card now\n", __func__);
 
         // close old card
         gc_mmceman_block_finish_transfer();
         gc_memory_card_exit();
         gc_mc_data_interface_flush();
+        if (!gc_cardman_final_flush()) {
+            gc_memory_card_enter();
+            mmceman_switching_timeout = time_us_64() + MMCEMAN_SAVE_RETRY_US;
+            return;
+        }
         gc_cardman_close();
 
         sleep_ms(500);

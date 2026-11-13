@@ -41,6 +41,7 @@ typedef struct {
 #define SETTINGS_GC_FLAGS_CARD_RESTORE     (0b0000001)
 #define SETTINGS_GC_FLAGS_GAME_ID          (0b0000010)
 #define SETTINGS_GC_FLAGS_ENC              (0b0000100)  // Card Encoding Default is Japanese
+#define SETTINGS_GC_FLAGS_FOLDER_BACKEND   (0b0001000)  // Cards with no StorageBackend of their own are folder cards
 #define SETTINGS_SYS_FLAGS_FLIPPED_DISPLAY (0b0000010)
 #define SETTINGS_SYS_FLAGS_SHOW_INFO       (0b0000100)
 
@@ -80,6 +81,8 @@ static int parse_card_configuration(void *user, const char *section, const char 
             default:
                 break;
         }
+    } else if (MATCH("Settings", "StorageBackend") && strcmp(value, "FOLDER") == 0) {
+        _s->gc_flags |= SETTINGS_GC_FLAGS_FOLDER_BACKEND;
     } else if (MATCH("General", "FlippedScreen")
         && DIFFERS(value, ((_s->sys_flags & SETTINGS_SYS_FLAGS_FLIPPED_DISPLAY) > 0))) {
         _s->sys_flags ^= SETTINGS_SYS_FLAGS_FLIPPED_DISPLAY;
@@ -101,6 +104,8 @@ static void settings_deserialize(void) {
                                              .sys_flags = settings.sys_flags,
                                              .gc_cardsize = settings.gc_cardsize};
         serialized_settings = newSettings;
+        /* folder cards stay opt-in: without the line in the file, the flag in flash does not count */
+        newSettings.gc_flags &= (uint8_t)~SETTINGS_GC_FLAGS_FOLDER_BACKEND;
         ini_parse_sd_file(fd, parse_card_configuration, &newSettings);
         sd_close(fd);
         if (memcmp(&newSettings, &serialized_settings, sizeof(serialized_settings))) {
@@ -146,6 +151,10 @@ static void settings_serialize(void) {
         written = (size_t)snprintf(line_buffer, 256, "Encoding=%s\n", ((settings.gc_flags & SETTINGS_GC_FLAGS_GAME_ID) > 0) ? "JAP" : "WORLD");
         sd_write(fd, line_buffer, written);
         written = (size_t)snprintf(line_buffer, 256, "CardSize=%u\n", settings.gc_cardsize);
+        sd_write(fd, line_buffer, written);
+        written = (size_t)snprintf(line_buffer, 256, "[Settings]\n");
+        sd_write(fd, line_buffer, written);
+        written = (size_t)snprintf(line_buffer, 256, "StorageBackend=%s\n", settings_get_gc_folder_backend() ? "FOLDER" : "RAW");
         sd_write(fd, line_buffer, written);
 
         sd_close(fd);
@@ -289,6 +298,10 @@ void settings_set_gc_game_id(bool enabled) {
     if (enabled != settings_get_gc_game_id())
         settings.gc_flags ^= SETTINGS_GC_FLAGS_GAME_ID;
     SETTINGS_UPDATE_FIELD(gc_flags);
+}
+
+bool settings_get_gc_folder_backend(void) {
+    return (settings.gc_flags & SETTINGS_GC_FLAGS_FOLDER_BACKEND);
 }
 
 bool settings_get_gc_encoding(void) {

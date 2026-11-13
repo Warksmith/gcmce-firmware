@@ -14,6 +14,7 @@
 
 #include "pico/platform.h"
 #include "gc_dirty.h"
+#include "gc_folder_card.h"
 #include "psram/psram.h"
 
 #include "sd.h"
@@ -64,7 +65,8 @@ static uint32_t cardprog_pos;
 
 static gc_cardman_state_t cardman_state;
 
-static enum { CARDMAN_CREATE, CARDMAN_OPEN, CARDMAN_IDLE, CARDMAN_SD } cardman_operation;
+static enum { CARDMAN_CREATE, CARDMAN_OPEN, CARDMAN_IDLE, CARDMAN_SD, CARDMAN_FOLDER, CARDMAN_FOLDER_ERROR } cardman_operation;
+static bool folder_backend;
 
 static void update_encoding(void) {
     switch (cardman_state) {
@@ -381,8 +383,36 @@ static int next_segment_to_load() {
     return -1;
 }
 
+static void folder_load_slice(void) {
+    int percent = 0;
+
+    switch (gc_folder_card_load_task(&percent)) {
+        case GC_FOLDER_LOAD_DONE:
+            card_size = gc_folder_card_size_bytes();
+            card_enc = gc_folder_card_encoding();
+            segment_count = (int32_t)(card_size / SEGMENT_SIZE);
+            memset(gc_available_segments, 0xFF, (size_t)segment_count / 8U);
+            cardman_operation = CARDMAN_IDLE;
+            if (cardman_cb)
+                cardman_cb(100, true);
+            break;
+        case GC_FOLDER_LOAD_FAILED:
+            /* stays not idle, so core 1 keeps the card hidden from the console */
+            cardman_operation = CARDMAN_FOLDER_ERROR;
+            if (cardman_cb)
+                cardman_cb(100, true);
+            break;
+        default:
+            if (cardman_cb)
+                cardman_cb(percent, false);
+            break;
+    }
+}
+
 static void gc_cardman_continue(void) {
-    if (cardman_operation == CARDMAN_OPEN) {
+    if (cardman_operation == CARDMAN_FOLDER) {
+        folder_load_slice();
+    } else if (cardman_operation == CARDMAN_OPEN) {
         uint64_t slice_start = time_us_64();
 
         log(LOG_TRACE, "%s:%u\n", __func__, __LINE__);
@@ -476,6 +506,23 @@ static void gc_cardman_continue(void) {
     }
 }
 
+static void open_folder_card(void) {
+    char path[256];
+
+    snprintf(path, sizeof(path), "%s/%s/%s-%d.folder", cardhome, folder_name, folder_name, card_chan);
+    log(LOG_INFO, "Switching to folder card = %s\n", path);
+
+    cardman_operation = CARDMAN_FOLDER;
+    card_size = 0;
+    segment_count = 0;
+    cardprog_start = time_us_64();
+
+    gc_folder_card_open(path, card_config_get_gc_cardsize(folder_name, folder_name), settings_get_gc_cardsize(), (uint8_t)card_enc);
+
+    if (cardman_cb)
+        cardman_cb(0, false);
+}
+
 void gc_cardman_open(void) {
     char path[256];
 
@@ -491,6 +538,13 @@ void gc_cardman_open(void) {
 
     log(LOG_INFO, "Switching to card path = %s\n", path);
     gc_mc_data_interface_card_changed();
+
+    folder_backend = card_config_get_gc_backend(folder_name, folder_name,
+                                                settings_get_gc_folder_backend() ? CARD_BACKEND_FOLDER : CARD_BACKEND_RAW) == CARD_BACKEND_FOLDER;
+    if (folder_backend) {
+        open_folder_card();
+        return;
+    }
 
     if (!sd_exists(path)) {
         card_size = card_config_get_gc_cardsize(folder_name, folder_name) * 1024 * 1024 / 8;
@@ -557,7 +611,39 @@ void gc_cardman_open(void) {
     log(LOG_INFO, "Open Finished!\n");
 }
 
+bool gc_cardman_final_flush(void) {
+    return !folder_backend || gc_folder_card_flush();
+}
+
+bool gc_cardman_is_folder(void) {
+    return folder_backend;
+}
+
+bool gc_cardman_save_failing(void) {
+    return folder_backend && gc_folder_card_save_failing();
+}
+
+bool gc_cardman_has_error(void) {
+    return gc_cardman_save_failing() || cardman_operation == CARDMAN_FOLDER_ERROR;
+}
+
+const char *gc_cardman_get_status_text(void) {
+    return folder_backend ? gc_folder_card_status_text() : NULL;
+}
+
 void gc_cardman_close(void) {
+    if (folder_backend) {
+        if (!gc_folder_card_close()) {
+            log(LOG_WARN, "%s folder card has unsaved changes\n", __func__);
+            return;
+        }
+        folder_backend = false;
+        current_read_segment = 0;
+        priority_segment = -1;
+        memset(gc_available_segments, 0, sizeof(gc_available_segments));
+        return;
+    }
+
     if (gc_cardman_fd < 0)
         return;
     gc_cardman_flush();
@@ -686,7 +772,9 @@ void gc_cardman_set_progress_cb(cardman_cb_t func) {
 char *gc_cardman_get_progress_text(void) {
     static char progress[32];
 
-    if (cardman_operation != CARDMAN_IDLE)
+    if (cardman_operation == CARDMAN_FOLDER || cardman_operation == CARDMAN_FOLDER_ERROR)
+        snprintf(progress, sizeof(progress), "%s", gc_folder_card_status_text());
+    else if (cardman_operation != CARDMAN_IDLE)
         snprintf(progress, sizeof(progress), "%s %.2f kB/s", cardman_operation == CARDMAN_CREATE ? "Wr" : "Rd",
                  1000000.0 * cardprog_pos / (double)(time_us_64() - cardprog_start) / 1024);
     else
@@ -747,4 +835,7 @@ void gc_cardman_init(void) {
 
 void gc_cardman_task(void) {
     gc_cardman_continue();
+
+    if (folder_backend && cardman_operation == CARDMAN_IDLE)
+        gc_folder_card_task();
 }

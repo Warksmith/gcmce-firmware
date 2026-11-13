@@ -26,6 +26,13 @@ void gc_cardman_set_priority_segment(uint32_t segment);
 void gc_cardman_flush(void);
 void gc_cardman_open(void);
 void gc_cardman_close(void);
+/* With the console stopped, gets everything onto the SD card. False if a card that keeps
+ * changes in PSRAM could not save them, and closing it would lose them. */
+bool gc_cardman_final_flush(void);
+bool gc_cardman_is_folder(void);
+bool gc_cardman_save_failing(void);
+bool gc_cardman_has_error(void);
+const char *gc_cardman_get_status_text(void);
 int gc_cardman_get_idx(void);
 int gc_cardman_get_channel(void);
 uint32_t gc_cardman_get_card_size(void);

@@ -16,7 +16,7 @@
     #define log(level, fmt, x...) LOG_PRINT(LOG_LEVEL_CARD_CONF, level, fmt, ##x)
 #endif
 
-#define MAX_CFG_PATH_LENGTH         (64)
+#define MAX_CFG_PATH_LENGTH         (96)
 #define CUSTOM_CARDS_CONFIG_PATH    (".flippermce/Game2Folder.ini")
 
 typedef struct {
@@ -25,6 +25,7 @@ typedef struct {
     size_t channel_name_max_len;
     uint8_t card_size;
     uint8_t max_channels;
+    card_backend_t backend;
 } parse_card_config_t;
 
 typedef struct {
@@ -70,6 +71,11 @@ static int parse_card_configuration(void *user, const char *section, const char 
             default:
                 break;
         }
+    } else if (MATCH("Settings", "StorageBackend")) {
+        /* anything but an exact FOLDER stays a .raw card */
+        ctx->backend = strcmp(value, "FOLDER") == 0 ? CARD_BACKEND_FOLDER : CARD_BACKEND_RAW;
+        if (ctx->backend == CARD_BACKEND_RAW && strcmp(value, "RAW") != 0)
+            log(LOG_WARN, "invalid StorageBackend %s\n", value);
     } else if (MATCH("Settings", "MaxChannels")) {
         uint8_t max_channels = (uint8_t)atoi(value);
         if (max_channels > 0) {
@@ -88,7 +94,7 @@ static void card_config_get_ini_name(const char* card_folder, const char* card_b
 }
 
 void card_config_read_channel_name(const char* card_folder, const char* card_base, const char* channel_number, char* name, size_t name_max_len) {
-    char config_path[64];
+    char config_path[MAX_CFG_PATH_LENGTH];
     int fd;
 
     card_config_get_ini_name(card_folder, card_base, config_path);
@@ -107,8 +113,30 @@ void card_config_read_channel_name(const char* card_folder, const char* card_bas
     }
 }
 
+card_backend_t card_config_get_gc_backend(const char* card_folder, const char* card_base, card_backend_t default_backend) {
+    char config_path[MAX_CFG_PATH_LENGTH];
+    int fd;
+    parse_card_config_t ctx = {
+        .channel_number = NULL,
+        .channel_name = NULL,
+        .channel_name_max_len = 0,
+        .card_size = 0,
+        .max_channels = 8,
+        .backend = default_backend
+    };
+
+    card_config_get_ini_name(card_folder, card_base, config_path);
+
+    fd = sd_open(config_path, O_RDONLY);
+    if (fd >= 0) {
+        ini_parse_sd_file(fd, parse_card_configuration, &ctx);
+        sd_close(fd);
+    }
+    return ctx.backend;
+}
+
 uint8_t card_config_get_gc_cardsize(const char* card_folder, const char* card_base) {
-    char config_path[64];
+    char config_path[MAX_CFG_PATH_LENGTH];
     int fd;
     parse_card_config_t ctx = {
         .channel_number = NULL,
