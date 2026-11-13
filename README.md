@@ -41,8 +41,40 @@ The mapping needs to be defined in ```.flippermce/Game2Folder.ini``` in the foll
 
 ```ini
 [GC]
-GT4P=FolderName
+DL-DOL-GT4P-EUR=FolderName
 ```
+
+Use the full GameID reported by the firmware (`DL-DOL-<four-character ID>-<region>`).
+Trailing `*` wildcards group IDs by prefix; repeated trailing stars mean the same
+thing as one star. For example:
+
+```ini
+[GC]
+DL-DOL-GT4P-EUR=ExactCard
+DL-DOL-GT4*=SharedSeries
+DL-DOL-*=AllGames
+UseDefaultCard=ON
+DefaultCard=Shared
+```
+
+Exact IDs take priority over wildcards, then the longest matching prefix wins,
+regardless of line order. Equal-specificity matches use the last entry. Matching
+is case-sensitive. Only trailing stars are supported, not `?` or embedded stars.
+A bare `*` matches every nonempty ID.
+
+`UseDefaultCard=ON` enables `DefaultCard` only when no mapping matches. It is off
+when omitted; `OFF` or any value other than `ON` disables it (`ON` is
+case-insensitive). Remove `DL-DOL-*=AllGames` from this example to let unmatched
+GameCube IDs use `Shared`. Without fallback, unmatched games keep the normal
+per-GameID card behavior. An empty mapping explicitly selects that normal
+behavior, even with fallback enabled.
+
+Targets are card folder names under `MemoryCards/GC`, limited to 31 characters
+(longer names are truncated). For example, `DefaultCard=Shared` selects
+`MemoryCards/GC/Shared` and uses its normal card/channel naming and settings.
+GameID must be enabled in
+`settings.ini`; this does not change boot-time Card Restore behavior.
+The lookup runs during card selection, with no extra work on card reads or writes.
 
 *Note: Be aware: Long folder names may not be displayed correctly and may result in stuttering of MMCE games due to scrolling.*
 *Note 2: Make sure there is an empty line at the end of the ini file.*
