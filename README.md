@@ -47,6 +47,26 @@ It has the following base feature set:
 
 If active, FlipperMCE will always boot to the last used card.
 
+With Card Restore off, choose a fixed startup card in `.flippermce/settings.ini`:
+
+```ini
+[GC]
+CardRestore=OFF
+StartupCard=Shared
+```
+
+This opens channel 1 of `MemoryCards/GC/Shared` at power-up. You can also use a
+numbered card such as `StartupCard=Card12`, or a full GameID folder name.
+Missing cards are created through the normal card creation process, using the
+configured card size. Existing cards are loaded normally.
+
+`CardRestore=ON` takes priority over `StartupCard`. An empty or omitted
+`StartupCard` keeps the original Card1 behavior. Use a single folder name of up
+to 31 characters, without path separators or filename-invalid characters;
+invalid values fall back to Card1. This setting is read from the SD card and
+preserved when the device rewrites settings; it does not reset flash settings.
+GameID switching can still select another card after startup.
+
 ### Game ID
 
 Many loaders implement a special protocol, that allows the cube to transmit the Game ID of the currently started game to an *MCE*. FlipperMCE supports this protocol (see *doc/mcp*) and will load or create a card for each trasmitted Game ID if configured so.
@@ -116,6 +136,7 @@ A settings file has the following format:
 FlippedScreen=OFF
 [GC]
 CardRestore=ON
+StartupCard=
 GameID=ON
 CardSize=64
 ```
@@ -125,6 +146,7 @@ Possible values are:
 | Setting       | Values                                |
 |---------------|---------------------------------------|
 | CardRestore   | `OFF`, `ON`                           |
+| StartupCard   | Card folder name; empty uses Card1 when CardRestore is OFF |
 | GameID        | `OFF`, `ON`                           |
 | CardSize      | `4`, `8`, `16`, `32`, `64`            |
 | FlippedScreen | `ON`, `OFF`                           |

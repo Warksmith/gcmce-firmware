@@ -20,6 +20,8 @@ void settings_set_gc_last_card(uint8_t state, int card, int chan, char* folder_n
 void settings_set_gc_cardsize(uint8_t size);
 
 bool settings_get_gc_card_restore(void);
+/* Empty means the legacy Card1 startup; CardRestore takes precedence. */
+const char *settings_get_gc_startup_card(void);
 void settings_set_gc_card_restore(bool card_restore);
 bool settings_get_gc_game_id(void);
 void settings_set_gc_game_id(bool enabled);
